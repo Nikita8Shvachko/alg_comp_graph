@@ -77,32 +77,32 @@ namespace
 
     constexpr TextureVertex kTexturedCubeVertices[] =
     {
-        // Front (+Z)
+        // +Z
         { { -0.5f, -0.5f,  0.5f }, { 0.0f, 1.0f } },
         { {  0.5f, -0.5f,  0.5f }, { 1.0f, 1.0f } },
         { {  0.5f,  0.5f,  0.5f }, { 1.0f, 0.0f } },
         { { -0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f } },
-        // Back (-Z)
+        // -Z
         { { -0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f } },
         { {  0.5f, -0.5f, -0.5f }, { 1.0f, 1.0f } },
         { {  0.5f,  0.5f, -0.5f }, { 1.0f, 0.0f } },
         { { -0.5f,  0.5f, -0.5f }, { 0.0f, 0.0f } },
-        // Left (-X)
+        // -X
         { { -0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f } },
         { { -0.5f, -0.5f,  0.5f }, { 1.0f, 1.0f } },
         { { -0.5f,  0.5f,  0.5f }, { 1.0f, 0.0f } },
         { { -0.5f,  0.5f, -0.5f }, { 0.0f, 0.0f } },
-        // Right (+X)
+        // +X
         { {  0.5f, -0.5f,  0.5f }, { 0.0f, 1.0f } },
         { {  0.5f, -0.5f, -0.5f }, { 1.0f, 1.0f } },
         { {  0.5f,  0.5f, -0.5f }, { 1.0f, 0.0f } },
         { {  0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f } },
-        // Top (+Y)
+        // +Y
         { { -0.5f,  0.5f,  0.5f }, { 0.0f, 1.0f } },
         { {  0.5f,  0.5f,  0.5f }, { 1.0f, 1.0f } },
         { {  0.5f,  0.5f, -0.5f }, { 1.0f, 0.0f } },
         { { -0.5f,  0.5f, -0.5f }, { 0.0f, 0.0f } },
-        // Bottom (-Y)
+        // -Y
         { { -0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f } },
         { {  0.5f, -0.5f, -0.5f }, { 1.0f, 1.0f } },
         { {  0.5f, -0.5f,  0.5f }, { 1.0f, 0.0f } },
@@ -119,16 +119,14 @@ namespace
         { { -0.5f, -0.5f, -0.5f } }, { {  0.5f, -0.5f, -0.5f } }, { {  0.5f, -0.5f,  0.5f } }, { { -0.5f, -0.5f,  0.5f } },
     };
 
-    // Two triangles per face, all CCW when viewed from outside. +Y/−Y use diagonal (17–19)/(21–23) so both
-    // tris match (fan (0,1,2)+(0,2,3) can leave one sub-triangle with inconsistent raster classification → “tri hole”).
     constexpr std::uint16_t kCubeIndices[] =
     {
         0, 1, 2, 0, 2, 3,       // +Z
         4, 6, 5, 4, 7, 6,       // -Z
         8, 9, 10, 8, 10, 11,    // -X
         12, 13, 14, 12, 14, 15, // +X
-        16, 17, 19, 17, 18, 19, // +Y (not 16–18 diagonal)
-        20, 21, 23, 21, 22, 23, // -Y (not 20–22 diagonal)
+        16, 17, 19, 17, 18, 19, // +Y  
+        20, 21, 23, 21, 22, 23, // -Y 
     };
 
     template <typename T>
@@ -713,7 +711,6 @@ namespace
 
         const std::wstring cwd = GetCurrentWorkingDirectoryW();
         const std::wstring dir = GetExecutableDirectory();
-        // Post-build copies .dds next to the .exe; try that first, then project textures\.
         const std::wstring cubePaths[] =
         {
             dir + L"Texture.dds",
@@ -1359,7 +1356,7 @@ namespace
         g_deviceContext->IASetIndexBuffer(g_indexBuffer, DXGI_FORMAT_R16_UINT, 0);
         g_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        // Skybox (first: depth write off, always pass)
+        // Скибокс
         const UINT skyStride = sizeof(SkyVertex);
         const UINT skyOffset = 0;
         ID3D11Buffer* skyVbs[] = { g_skyVertexBuffer };
@@ -1377,7 +1374,7 @@ namespace
         g_deviceContext->PSSetSamplers(0, 1, &g_samplerState);
         g_deviceContext->DrawIndexed(kCubeIndexCount, 0, 0);
 
-        // Textured cube
+        // Кубик
         const UINT stride = sizeof(TextureVertex);
         const UINT offset = 0;
         ID3D11Buffer* vertexBuffers[] = { g_vertexBuffer };

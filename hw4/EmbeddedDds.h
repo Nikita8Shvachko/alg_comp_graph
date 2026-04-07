@@ -1,4 +1,3 @@
-// Minimal valid DXT1 2D / cubemap DDS bytes — used if .dds files are missing on disk.
 #pragma once
 
 #include <cstddef>
