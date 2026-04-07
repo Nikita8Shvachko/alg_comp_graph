@@ -1,9 +1,17 @@
-// hw1.cpp : Определяет точку входа для приложения.
-//
+//#include "framework.h"
+//#include "hw1.h"
+#pragma once
 
-#include "framework.h"
-#include "hw1.h"
-
+#include "resource.h"
+#define WIN32_LEAN_AND_MEAN             
+// Файлы заголовков Windows
+#include <windows.h>
+// Файлы заголовков среды выполнения C
+#include <stdlib.h>
+#include <malloc.h>
+#include <memory.h>
+#include <tchar.h>
+#include <SDKDDKVer.h>
 #include <d3d11.h>
 #include <dxgi1_6.h>
 
