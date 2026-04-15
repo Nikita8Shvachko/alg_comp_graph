@@ -243,6 +243,19 @@ namespace
             | (static_cast<std::uint32_t>(a) << 24);
     }
 
+    void LogTextureSource(const wchar_t* kind, const std::wstring& source)
+    {
+        if (kind == nullptr)
+        {
+            return;
+        }
+
+        wchar_t message[512] = {};
+        const wchar_t* resolvedSource = source.empty() ? L"(unknown)" : source.c_str();
+        swprintf_s(message, ARRAYSIZE(message), L"[hw4] %ls source: %ls\n", kind, resolvedSource);
+        OutputDebugStringW(message);
+    }
+
     bool CreateFallbackCubeTexture2D(ID3D11Device* device, ID3D11Resource** outResource, ID3D11ShaderResourceView** outSrv)
     {
         if (device == nullptr || outResource == nullptr || outSrv == nullptr)
@@ -255,7 +268,7 @@ namespace
 
         constexpr UINT kW = 4;
         constexpr UINT kH = 4;
-        std::uint32_t pixels[kW * kH];
+        std::uint32_t pixels[kW * kH] = {};
         for (UINT y = 0; y < kH; ++y)
         {
             for (UINT x = 0; x < kW; ++x)
@@ -307,19 +320,50 @@ namespace
         *outResource = nullptr;
         *outSrv = nullptr;
 
-        static const std::uint32_t faceColors[6] =
+        constexpr UINT kFaceSize = 64;
+        std::uint32_t facePixels[6][kFaceSize * kFaceSize] = {};
+        const std::uint8_t faceBase[6][3] =
         {
-            PackRGBA(120, 160, 200, 255),
-            PackRGBA(80, 100, 130, 255),
-            PackRGBA(150, 190, 230, 255),
-            PackRGBA(60, 70, 90, 255),
-            PackRGBA(110, 150, 190, 255),
-            PackRGBA(90, 120, 150, 255),
+            { 220, 80, 80 },   // +X
+            { 80, 220, 80 },   // -X
+            { 80, 80, 220 },   // +Y
+            { 220, 220, 80 },  // -Y
+            { 220, 80, 220 },  // +Z
+            { 80, 220, 220 },  // -Z
         };
 
+        for (UINT face = 0; face < 6; ++face)
+        {
+            for (UINT y = 0; y < kFaceSize; ++y)
+            {
+                for (UINT x = 0; x < kFaceSize; ++x)
+                {
+                    const std::uint8_t rBase = faceBase[face][0];
+                    const std::uint8_t gBase = faceBase[face][1];
+                    const std::uint8_t bBase = faceBase[face][2];
+                    const std::uint8_t xFactor = static_cast<std::uint8_t>((x * 120u) / (kFaceSize - 1u));
+                    const std::uint8_t yFactor = static_cast<std::uint8_t>((y * 120u) / (kFaceSize - 1u));
+                    const bool grid = (x % 8u == 0u) || (y % 8u == 0u);
+
+                    std::uint8_t r = static_cast<std::uint8_t>((std::min)(255u, static_cast<unsigned int>(rBase) + xFactor));
+                    std::uint8_t g = static_cast<std::uint8_t>((std::min)(255u, static_cast<unsigned int>(gBase) + yFactor));
+                    std::uint8_t b = static_cast<std::uint8_t>((std::min)(255u, static_cast<unsigned int>(bBase) + ((xFactor + yFactor) / 2u)));
+
+                    if (grid)
+                    {
+                        r = static_cast<std::uint8_t>(255u - r / 2u);
+                        g = static_cast<std::uint8_t>(255u - g / 2u);
+                        b = static_cast<std::uint8_t>(255u - b / 2u);
+                    }
+
+                    facePixels[face][y * kFaceSize + x] = PackRGBA(r, g, b, 255);
+                }
+            }
+        }
+
         D3D11_TEXTURE2D_DESC desc = {};
-        desc.Width = 1;
-        desc.Height = 1;
+        desc.Width = kFaceSize;
+        desc.Height = kFaceSize;
         desc.MipLevels = 1;
         desc.ArraySize = 6;
         desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -331,8 +375,8 @@ namespace
         D3D11_SUBRESOURCE_DATA init[6] = {};
         for (int i = 0; i < 6; ++i)
         {
-            init[i].pSysMem = &faceColors[i];
-            init[i].SysMemPitch = sizeof(std::uint32_t);
+            init[i].pSysMem = facePixels[i];
+            init[i].SysMemPitch = kFaceSize * sizeof(std::uint32_t);
         }
 
         ID3D11Texture2D* tex = nullptr;
@@ -731,6 +775,7 @@ namespace
         };
 
         HRESULT hr = E_FAIL;
+        std::wstring cubeSource;
         for (const std::wstring& path : cubePaths)
         {
             if (!FileExistsW(path))
@@ -740,6 +785,7 @@ namespace
 
             hr = DirectX::CreateDDSTextureFromFile(
                 g_device,
+                g_deviceContext,
                 path.c_str(),
                 &g_cubeTextureResource,
                 &g_cubeTextureSRV,
@@ -747,6 +793,7 @@ namespace
                 nullptr);
             if (SUCCEEDED(hr))
             {
+                cubeSource = L"file: " + path;
                 break;
             }
             SafeRelease(g_cubeTextureSRV);
@@ -757,12 +804,17 @@ namespace
         {
             hr = DirectX::CreateDDSTextureFromMemory(
                 g_device,
+                g_deviceContext,
                 EmbeddedDds::kTexture2DDds,
                 EmbeddedDds::kTexture2DDdsSize,
                 &g_cubeTextureResource,
                 &g_cubeTextureSRV,
                 0,
                 nullptr);
+            if (SUCCEEDED(hr))
+            {
+                cubeSource = L"embedded DDS";
+            }
         }
 
         if (FAILED(hr))
@@ -778,9 +830,12 @@ namespace
                 MessageBoxW(g_hWnd, msg, szTitle, MB_ICONERROR | MB_OK);
                 return false;
             }
+
+            cubeSource = L"procedural fallback 2D (4x4 checker)";
         }
 
         hr = E_FAIL;
+        std::wstring skySource;
         for (const std::wstring& path : skyPaths)
         {
             if (!FileExistsW(path))
@@ -790,6 +845,7 @@ namespace
 
             hr = DirectX::CreateDDSTextureFromFile(
                 g_device,
+                g_deviceContext,
                 path.c_str(),
                 &g_skyboxCubemapResource,
                 &g_skyboxCubemapSRV,
@@ -797,6 +853,7 @@ namespace
                 nullptr);
             if (SUCCEEDED(hr))
             {
+                skySource = L"file: " + path;
                 break;
             }
             SafeRelease(g_skyboxCubemapSRV);
@@ -807,12 +864,17 @@ namespace
         {
             hr = DirectX::CreateDDSTextureFromMemory(
                 g_device,
+                g_deviceContext,
                 EmbeddedDds::kSkyboxCubemapDds,
                 EmbeddedDds::kSkyboxCubemapDdsSize,
                 &g_skyboxCubemapResource,
                 &g_skyboxCubemapSRV,
                 0,
                 nullptr);
+            if (SUCCEEDED(hr))
+            {
+                skySource = L"embedded DDS";
+            }
         }
 
         if (FAILED(hr))
@@ -828,8 +890,12 @@ namespace
                 MessageBoxW(g_hWnd, msg, szTitle, MB_ICONERROR | MB_OK);
                 return false;
             }
+
+            skySource = L"procedural fallback cubemap (64x64 patterned faces)";
         }
 
+        LogTextureSource(L"Cube texture", cubeSource);
+        LogTextureSource(L"Skybox cubemap", skySource);
         return true;
     }
 
