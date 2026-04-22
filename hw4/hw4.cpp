@@ -766,6 +766,12 @@ namespace
         };
         const std::wstring skyPaths[] =
         {
+            dir + L"SkyboxPhotoCubemap_Uffizi.dds",
+            dir + L"textures\\SkyboxPhotoCubemap.dds",
+            cwd + L"SkyboxPhotoCubemap.dds",
+            cwd + L"textures\\SkyboxPhotoCubemap.dds",
+            dir + L"..\\..\\textures\\SkyboxPhotoCubemap.dds",
+            dir + L"..\\..\\..\\textures\\SkyboxPhotoCubemap.dds",
             dir + L"SkyboxCubemap.dds",
             dir + L"textures\\SkyboxCubemap.dds",
             cwd + L"SkyboxCubemap.dds",
