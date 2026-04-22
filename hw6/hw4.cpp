@@ -125,10 +125,10 @@ namespace
         { {  0.5f,  0.5f, -0.5f }, {  0.0f,  0.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 1.0f, 0.0f } },
         { {  0.5f,  0.5f,  0.5f }, {  0.0f,  0.0f, -1.0f }, {  1.0f,  0.0f,  0.0f }, { 0.0f, 0.0f } },
         // +Y
-        { { -0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
-        { {  0.5f,  0.5f,  0.5f }, { -1.0f,  0.0f,  0.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
-        { {  0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } },
-        { { -0.5f,  0.5f, -0.5f }, { -1.0f,  0.0f,  0.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
+        { { -0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 1.0f } },
+        { {  0.5f,  0.5f,  0.5f }, {  1.0f,  0.0f,  0.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 1.0f } },
+        { {  0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, {  0.0f,  1.0f,  0.0f }, { 1.0f, 0.0f } },
+        { { -0.5f,  0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, {  0.0f,  1.0f,  0.0f }, { 0.0f, 0.0f } },
         // -Y
         { { -0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, {  0.0f, -1.0f,  0.0f }, { 0.0f, 1.0f } },
         { {  0.5f, -0.5f, -0.5f }, {  1.0f,  0.0f,  0.0f }, {  0.0f, -1.0f,  0.0f }, { 1.0f, 1.0f } },
@@ -359,7 +359,7 @@ namespace
         std::uint32_t pixels[kW * kH] = {};
         for (UINT i = 0; i < (kW * kH); ++i)
         {
-            pixels[i] = PackRGBA(128, 128, 255, 255); // плоская нормаль +Z в пространстве касательных
+            pixels[i] = PackRGBA(128, 128, 255, 255); // flat +Z normal in tangent space
         }
 
         D3D11_TEXTURE2D_DESC desc = {};
@@ -909,6 +909,10 @@ namespace
         };
         const std::wstring skyPaths[] =
         {
+            dir + L"textures\\IndoorEnvironmentHDRI013_4K_TONEMAPPED.dds",
+            cwd + L"textures\\IndoorEnvironmentHDRI013_4K_TONEMAPPED.dds",
+            dir + L"..\\..\\textures\\IndoorEnvironmentHDRI013_4K_TONEMAPPED.dds",
+            dir + L"..\\..\\..\\textures\\IndoorEnvironmentHDRI013_4K_TONEMAPPED.dds",
             dir + L"SkyboxPhotoCubemap_Uffizi.dds",
             dir + L"textures\\SkyboxPhotoCubemap.dds",
             cwd + L"SkyboxPhotoCubemap.dds",
@@ -1394,17 +1398,11 @@ namespace
         SceneBuffer sceneBuffer = {};
         DirectX::XMStoreFloat4x4(&sceneBuffer.vp, vpT);
         DirectX::XMStoreFloat4(&sceneBuffer.cameraPos, eye);
-        sceneBuffer.ambientColor = DirectX::XMFLOAT4(0.06f, 0.06f, 0.09f, 1.0f);
-        sceneBuffer.lightCount = DirectX::XMINT4(3, 0, 0, 0);
-        // источник света 1: над первым непрозрачным кубом (x = -0.65, y = 0.0, z = 0.0).
-        sceneBuffer.lights[0].pos = DirectX::XMFLOAT4(-0.65f, 1.0f, 0.0f, 0.0f);
-        sceneBuffer.lights[0].color = DirectX::XMFLOAT4(2.2f, 1.9f, 1.6f, 1.0f);
-        // источник света 2: над вторым непрозрачным кубом (x = 0.95, y = 0.2, z = -0.55).
-        sceneBuffer.lights[1].pos = DirectX::XMFLOAT4(0.95f, 1.2f, -0.55f, 0.0f);
-        sceneBuffer.lights[1].color = DirectX::XMFLOAT4(1.7f, 2.0f, 2.3f, 1.0f);
-        // источник света 3: боковой свет между кубами на средней высоте, чтобы попасть на верхнюю и боковую стороны.
-        sceneBuffer.lights[2].pos = DirectX::XMFLOAT4(0.15f, 0.8f, 1.7f, 0.0f);
-        sceneBuffer.lights[2].color = DirectX::XMFLOAT4(2.0f, 1.9f, 1.7f, 1.0f);
+        sceneBuffer.ambientColor = DirectX::XMFLOAT4(0.09f, 0.09f, 0.12f, 1.0f);
+        sceneBuffer.lightCount = DirectX::XMINT4(2, 0, 0, 0);
+        // One broad, soft light: slightly above cubes and farther to the right.
+        sceneBuffer.lights[0].pos = DirectX::XMFLOAT4(-3.8f, 3.8f, 0.6f, 0.0f);
+        sceneBuffer.lights[0].color = DirectX::XMFLOAT4(30.0f, 30.8f, 35.4f, 1.0f);
 
         D3D11_MAPPED_SUBRESOURCE mapped = {};
         HRESULT hr = g_deviceContext->Map(g_sceneBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
@@ -1728,7 +1726,7 @@ namespace
         g_deviceContext->PSSetConstantBuffers(0, ARRAYSIZE(constantBuffers), constantBuffers);
         g_deviceContext->PSSetShaderResources(0, 2, cubeSrvs);
         g_deviceContext->PSSetSamplers(0, 1, &g_samplerState);
-
+        
         // вращение кубов
         // const DirectX::XMMATRIX baseRotation =
         //     DirectX::XMMatrixRotationY(elapsedSeconds * kRotationSpeed) *
@@ -1737,9 +1735,9 @@ namespace
 
         const DirectX::XMMATRIX opaqueModelA = DirectX::XMMatrixTranslation(-0.65f, 0.0f, 0.0f) * baseRotation;
         const DirectX::XMMATRIX opaqueModelB = DirectX::XMMatrixTranslation(0.95f, 0.2f, -0.55f) * baseRotation;
-        UpdateModelBuffer(opaqueModelA, 48.0f);
+        UpdateModelBuffer(opaqueModelA, 12.0f);
         g_deviceContext->DrawIndexed(kCubeIndexCount, 0, 0);
-        UpdateModelBuffer(opaqueModelB, 24.0f);
+        UpdateModelBuffer(opaqueModelB, 10.0f);
         g_deviceContext->DrawIndexed(kCubeIndexCount, 0, 0);
 
         std::vector<TransparentObject> transparentObjects =

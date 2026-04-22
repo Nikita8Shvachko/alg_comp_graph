@@ -1,4 +1,4 @@
-TextureCube colorTexture : register(t0);
+Texture2D colorTexture : register(t0);
 SamplerState colorSampler : register(s0);
 
 struct VSOutput
@@ -10,5 +10,9 @@ struct VSOutput
 float4 main(VSOutput pixel) : SV_Target
 {
     float3 dir = normalize(pixel.localPos);
-    return float4(colorTexture.Sample(colorSampler, dir).xyz, 1.0f);
+    const float pi = 3.14159265f;
+    float2 uv;
+    uv.x = atan2(dir.z, dir.x) / (2.0f * pi) + 0.5f;
+    uv.y = acos(clamp(dir.y, -1.0f, 1.0f)) / pi;
+    return float4(colorTexture.Sample(colorSampler, uv).xyz, 1.0f);
 }
