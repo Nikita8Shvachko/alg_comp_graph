@@ -1,0 +1,70 @@
+struct Light
+{
+    float4 pos;
+    float4 color;
+};
+
+cbuffer ModelBuffer : register(b0)
+{
+    float4x4 model;
+    float4 material;
+};
+
+cbuffer SceneBuffer : register(b1)
+{
+    float4x4 vp;
+    float4 cameraPos;
+    float4 ambientColor;
+    int4 lightCount;
+    Light lights[10];
+};
+
+Texture2D diffuseTexture : register(t0);
+Texture2D normalMap : register(t1);
+SamplerState defaultSampler : register(s0);
+
+struct VSOutput
+{
+    float4 pos : SV_Position;
+    float3 worldPos : POSITION1;
+    float3 worldTangent : TANGENT;
+    float3 worldNormal : NORMAL;
+    float2 uv : TEXCOORD;
+};
+
+float4 main(VSOutput pixel) : SV_Target
+{
+    const float3 albedo = diffuseTexture.Sample(defaultSampler, pixel.uv).xyz;
+    float2 encodedXY = normalMap.Sample(defaultSampler, pixel.uv).xy * 2.0f - 1.0f;
+    float z2 = saturate(1.0f - dot(encodedXY, encodedXY));
+    float3 normalFromMap = float3(encodedXY, sqrt(z2));
+
+    float3 N = normalize(pixel.worldNormal);
+    float3 T = normalize(pixel.worldTangent);
+    T = normalize(T - N * dot(T, N));
+    // Use T x N to match DirectX tangent-space orientation for this mesh UV layout.
+    float3 B = normalize(cross(T, N));
+    float3 normal = normalize(normalFromMap.x * T + normalFromMap.y * B + normalFromMap.z * N);
+
+    float3 finalColor = ambientColor.xyz * albedo;
+    float3 viewDir = normalize(cameraPos.xyz - pixel.worldPos);
+    const int activeLights = min(lightCount.x, 10);
+
+    for (int i = 0; i < activeLights; ++i)
+    {
+        float3 lightVec = lights[i].pos.xyz - pixel.worldPos;
+        float distance = max(length(lightVec), 0.0001f);
+        float3 lightDir = lightVec / distance;
+        float attenuation = min(1.0f / (distance * distance), 1.0f);
+
+        float diffuse = max(dot(normal, lightDir), 0.0f);
+        float3 reflectDir = reflect(-lightDir, normal);
+        float specular = pow(max(dot(viewDir, reflectDir), 0.0f), material.x);
+
+        float3 lightContribution = lights[i].color.xyz * attenuation;
+        finalColor += albedo * diffuse * lightContribution;
+        finalColor += specular * lightContribution;
+    }
+
+    return float4(finalColor, 1.0f);
+}
