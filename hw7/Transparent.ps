@@ -1,0 +1,15 @@
+cbuffer TransparentColorBuffer : register(b2)
+{
+    float4 color;
+};
+
+struct VSOutput
+{
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD;
+};
+
+float4 main(VSOutput pixel) : SV_Target
+{
+    return color;
+}

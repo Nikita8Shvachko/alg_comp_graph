@@ -1,0 +1,91 @@
+struct Light
+{
+    float4 pos;
+    float4 color;
+};
+
+cbuffer ModelBuffer : register(b0)
+{
+    float4x4 model;
+    float4 material;
+};
+
+cbuffer SceneBuffer : register(b1)
+{
+    float4x4 vp;
+    float4 cameraPos;
+    float4 ambientColor;
+    int4 lightCount;
+    Light lights[10];
+};
+
+struct GeomBufferData
+{
+    float4x4 model;
+    float4x4 normalMatrix;
+    float4 params;
+};
+
+cbuffer GeomBufferInst : register(b2)
+{
+    GeomBufferData geomBuffer[100];
+};
+
+Texture2DArray diffuseTextureArray : register(t0);
+Texture2D normalMap : register(t1);
+Texture2D leatherNormalMap : register(t2);
+SamplerState defaultSampler : register(s0);
+
+struct VSOutput
+{
+    float4 pos : SV_Position;
+    float3 worldPos : POSITION1;
+    float3 worldTangent : TANGENT;
+    float3 worldNormal : NORMAL;
+    float2 uv : TEXCOORD;
+    nointerpolation uint instanceId : INST_ID;
+    nointerpolation float shininess : SHININESS;
+    nointerpolation float useNormalMap : USE_NM;
+};
+
+float4 main(VSOutput pixel) : SV_Target
+{
+    const uint idx = min(pixel.instanceId, 99);
+    const uint texId = (uint)round(geomBuffer[idx].params.z);
+    const float3 albedo = diffuseTextureArray.Sample(defaultSampler, float3(pixel.uv, (float)texId)).xyz;
+
+    float3 N = normalize(pixel.worldNormal);
+    float3 T = normalize(pixel.worldTangent);
+    T = normalize(T - N * dot(T, N));
+    float3 B = normalize(cross(T, N));
+    float3 normal = N;
+    if (pixel.useNormalMap > 0.5f)
+    {
+        float2 encodedXY = (texId == 0 ? normalMap.Sample(defaultSampler, pixel.uv).xy : leatherNormalMap.Sample(defaultSampler, pixel.uv).xy) * 2.0f - 1.0f;
+        float z2 = saturate(1.0f - dot(encodedXY, encodedXY));
+        float3 normalFromMap = float3(encodedXY, sqrt(z2));
+        normal = normalize(normalFromMap.x * T + normalFromMap.y * B + normalFromMap.z * N);
+    }
+
+    float3 finalColor = ambientColor.xyz * albedo;
+    float3 viewDir = normalize(cameraPos.xyz - pixel.worldPos);
+    const int activeLights = min(lightCount.x, 10);
+
+    for (int i = 0; i < activeLights; ++i)
+    {
+        float3 lightVec = lights[i].pos.xyz - pixel.worldPos;
+        float distance = max(length(lightVec), 0.0001f);
+        float3 lightDir = lightVec / distance;
+        float attenuation = min(1.0f / (distance * distance), 1.0f);
+
+        float diffuse = max(dot(normal, lightDir), 0.0f);
+        float3 reflectDir = reflect(-lightDir, normal);
+        float specular = pow(max(dot(viewDir, reflectDir), 0.0f), max(pixel.shininess, 1.0f));
+
+        float3 lightContribution = lights[i].color.xyz * attenuation;
+        finalColor += albedo * diffuse * lightContribution;
+        finalColor += specular * lightContribution;
+    }
+
+    return float4(finalColor, 1.0f);
+}

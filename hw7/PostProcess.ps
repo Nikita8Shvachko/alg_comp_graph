@@ -1,0 +1,20 @@
+cbuffer PostProcessParams : register(b0)
+{
+    float4 brightnessContrast; // x = brightness, y = contrast
+};
+
+Texture2D sceneTexture : register(t0);
+SamplerState defaultSampler : register(s0);
+
+struct VSOutput
+{
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD;
+};
+
+float4 main(VSOutput input) : SV_Target
+{
+    float3 color = sceneTexture.Sample(defaultSampler, input.uv).rgb;
+    color = (color - 0.5f) * brightnessContrast.y + 0.5f + brightnessContrast.x;
+    return float4(saturate(color), 1.0f);
+}
